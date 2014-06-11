@@ -125,12 +125,15 @@ struct particle_t
 
 	int   id;
 	
+	float E;
+	
 	float pt;
     float pz;
     float phi;
     float eta;
     float y;
 	
+	int jet_id;
 	int mother_id;
 };
 
@@ -184,7 +187,8 @@ int main(int argc, char* argv[]) {
 	
 	tree.Branch("asso_particle", &asso_particle.event_no,
 				"event_no/I:"
-				"id/I:pt/F:pz/F:phi/F:eta/F:y/F:"
+				"id/I:E/F:pt/F:pz/F:phi/F:eta/F:y/F:"
+				"jet_id/I:"
 				"mother_id/I");
     TH1F *hfid = new TH1F("hfid","id for any particles",12000,-6000,6000);
     TH1F *htally  = new TH1F("htally","tally",100,-0.5,99.5);
@@ -299,12 +303,31 @@ int main(int argc, char* argv[]) {
 	int nhfe = 0;
 	int npartons=0;
 	int nhfpartons=0;
+		
+	//array to hold all jet ids
+	int jetidarray[10000];
+		
+	for (int i=0; i<10000; i++) {
+		jetidarray[i] = -1;
+	}
+		
 	htally->Fill(0);
 	if(mPrint)cout<<"to start the 1st loop"<<endl;
 	for (int i = 0; i < event.size(); i++) 
 	{
 		htally->Fill(1);
-		hfid->Fill(event[i].id());	
+		hfid->Fill(event[i].id());
+		
+		if (jetidarray[event[i].mother1()] > 0) {
+			jetidarray[i] = jetidarray[event[i].mother1()];
+		}
+		else if (event[i].id() == 4 || event[i].id() == 5) {
+			jetidarray[i] = 1;
+		}
+		else if (event[i].id() == -4 || event[i].id() == -5) {
+			jetidarray[i] = 2;
+		}
+		
 		if(event[i].isFinal()==true) continue;//not trying to find final particles now
 		if(event[event[i].mother1()].id()==event[i].id())continue; //recoil
 		if(Flavor(event[i].id()) == 4 || Flavor(event[i].id())==5 )	//
@@ -341,12 +364,14 @@ int main(int argc, char* argv[]) {
 				asso_particle.event_no = ievent;
 				
 				asso_particle.id = event[i].id();
+				asso_particle.E  = event[i].e();
 				asso_particle.pt = event[i].pT();
 				asso_particle.pz = event[i].pz();
 				asso_particle.phi = event[i].phi();
 				asso_particle.eta = event[i].eta();
 				asso_particle.y = event[i].y();
 				
+				asso_particle.jet_id = jetidarray[i];
 				asso_particle.mother_id = event[event[i].mother1()].id();
 				
 				tree.Fill();

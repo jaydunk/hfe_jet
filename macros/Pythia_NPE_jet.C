@@ -24,12 +24,15 @@ struct particle_t
 	
 	int   id;
 	
+	float E;
+	
 	float pt;
     float pz;
     float phi;
     float eta;
     float y;
 	
+	int jet_id;
 	int mother_id;
 };
 
@@ -93,16 +96,16 @@ void Pythia_NPE_jet() {
 	nfile += chain->Add(inputfiles.data());
 	cout << "Added " << nfile << " to chain." << endl;
 	
-	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/eh_corr/data/pythia_NPE_jet_output.root";
+	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_jet_output.root";
 	TFile *outfile = new TFile(ofname.data(), "RECREATE");
 	
 	//Histograms
-	TH1D *hJetSum[10];
-	TH1D *hNPEFraction[10];
+	TH1D *hJetSum_conesize[10];
+	TH1D *hNPEFraction_conesize[10];
 	
-	for (int i=0; i<10; i++) {
-		hJetSum[i] = new TH1D(Form("hJetSum_%d", i), Form("Sum of energy in jet for %d", i), 400, 0.0, 40.0);
-		hNPEFraction[i] = new TH1D(Form("hNPEFraction_%d", i), Form("NPE/jettotal %d", i), 100, 0.0, 1.0);
+	for (int i=0; i<5; i++) {
+		hJetSum_conesize[i] = new TH1D(Form("hJetSum_conesize_%d", i), Form("Sum of energy in jet for cone size %d", i), 400, 0.0, 40.0);
+		hNPEFraction_conesize[i] = new TH1D(Form("hNPEFraction_conesize_%d", i), Form("NPE/jettotal for cone size %d", i), 100, 0.0, 1.0);
 	}
 	
 	particle_t current_particle;
@@ -128,23 +131,27 @@ void Pythia_NPE_jet() {
 				//check electron pt/acceptance
 				double jet_sum = 0.0;
 				double e_E = 0.0;
-				double htot_E = 0.0;
+				double htot_E[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
 				if (e_iter->eta < .7 && e_iter->eta > -.7 && e_iter->pt > 3.0 && e_iter->pt < 10.0) {
-					e_E = sqrt(e_iter->pt*e_iter->pt + e_iter->pz*e_iter->pz);
+					e_E = e_iter->E;
 					for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
 						if (asso_iter->eta < 1.0 && asso_iter->eta > -1.0) {
 							if (asso_iter->pt < .2) continue;
 							double dEta = asso_iter->eta - e_iter->eta;
 							double dPhi = asso_iter->phi - e_iter->phi;
-							if (sqrt(dEta*dEta + dPhi*dPhi) < .2) { //jet cone condition
-								htot_E += sqrt(asso_iter->pt*asso_iter->pt + asso_iter->pz*asso_iter->pz); //just using as a proxy for E now will change later
+							//if (sqrt(dEta*dEta + dPhi*dPhi) < .2) { //jet cone condition
+							double minimum_jet_cone_size = 0.2;
+							for (int jet_cone_inc_number = 0; jet_cone_inc_number<5; jet_cone_inc_number++) {
+								if (sqrt(dEta*dEta + dPhi*dPhi) < (minimum_jet_cone_size + .1*jet_cone_inc_number)) {
+									htot_E[jet_cone_inc_number] += asso_iter->E;
+								}
 							}
 						}
 					}
 					//at the end of each seed e sum up the jet
-					for (int i=0; i<10; i++) {
-						hJetSum[i]->Fill(htot_E + e_E);
-						hNPEFraction[i]->Fill(e_E/(htot_E + e_E));
+					for (int i=0; i<5; i++) {
+						hJetSum_conesize[i]->Fill(htot_E[i] + e_E);
+						hNPEFraction_conesize[i]->Fill(e_E/(htot_E[i] + e_E));
 					}
 				}
 			}

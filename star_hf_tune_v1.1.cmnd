@@ -27,7 +27,7 @@
 # This is not part of the star_hf tune (just convenient)
 # Documentation: <pyhiadir>/htmldoc/MainProgramSettings.html
 #------------------------------------------------------------------------------
-Main:numberOfEvents = 5000000    ! number of events to generate
+Main:numberOfEvents = 1000000    ! number of events to generate
 Main:numberToList = 0              ! number of events to print
 Main:timesToShow = 100             ! show how far along run is this many times
 Main:timesAllowErrors = 1000        ! abort run after this many flawed events
@@ -56,7 +56,7 @@ Beams:eCM = 200.                  ! RHIC nominal (GeV)
 # Documentation: <pyhiadir>/htmldoc/OniaProcesses.html
 #------------------------------------------------------------------------------
 # Uncomment for charmonium
- Charmonium:all = on   ! charmonium production
+# Charmonium:all = on   ! charmonium production
 
 # Uncomment for charmonium singlet only
 # Charmonium:gg2QQbar[3S1(1)]g = on
@@ -85,12 +85,12 @@ Beams:eCM = 200.                  ! RHIC nominal (GeV)
 # Bottomonium:all = on  ! bottomonium production
 
 # Uncomment next 2 lines for charm
-# HardQCD:gg2ccbar = on    ! g g -> c cbar
-# HardQCD:qqbar2ccbar = on ! q qbar -> c cbar
+ HardQCD:gg2ccbar = on    ! g g -> c cbar
+ HardQCD:qqbar2ccbar = on ! q qbar -> c cbar
 
 # Uncomment next 2 lines for bottom
-# HardQCD:gg2bbbar = on    ! g g -> b bbar
-# HardQCD:qqbar2bbbar = on ! q qbar -> b bbar
+ HardQCD:gg2bbbar = on    ! g g -> b bbar
+ HardQCD:qqbar2bbbar = on ! q qbar -> b bbar
 
 # Uncomment for Drell-Yan
 # WeakSingleBoson:ffbar2gmZ = on
