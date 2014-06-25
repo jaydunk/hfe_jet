@@ -39,10 +39,8 @@ struct particle_t
 struct jet_t {
 	double E;
 	double E_T;
-	
 	double axis_phi;
 	double axis_eta;
-	
 	double e_E;
 };
 
@@ -95,6 +93,42 @@ float dPhi(float phi1, float phi2) {
 	
 }
 
+void fixed_cone_e_jet(jet_t& jet, vector<particle_t> event_electrons, vector<particle_t> event_assoparticles, double conesize) {
+	
+	jet.E = 0.;
+	jet.E_T = 0.;
+	jet.axis_phi = 0.;
+	jet.axis_eta = 0.;
+	jet.e_E = 0.;
+	
+	for (vector<particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
+		double jet_sum = 0.0;
+		double e_pt = 0.0;
+		double htot_E = 0.0;
+		double htot_pt = 0.0;
+		if (e_iter->eta < .7 && e_iter->eta > -.7 && e_iter->pt > 3.0 && e_iter->pt < 10.0) {
+			e_pt = e_iter->pt;
+			for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
+				if (asso_iter->eta < 1.0 && asso_iter->eta > -1.0) {
+					if (asso_iter->pt < .2) continue;
+					double dEta = asso_iter->eta - e_iter->eta;
+					double dPhi = asso_iter->phi - e_iter->phi;
+					if (sqrt(dEta*dEta + dPhi*dPhi) < conesize) {
+						htot_pt += asso_iter->pt;
+						htot_E += asso_iter->E;
+					}
+				}
+			}
+		}
+		//make jet
+		jet.E = htot_E;
+		jet.E_T = htot_pt;
+		jet.axis_phi = 0.0; //will update with axis information later
+		jet.axis_eta = 0.0;
+		jet.e_E = e_pt;
+	}
+};
+
 void Pythia_NPE_jet() {
 	
 	string inputfiles;
@@ -112,6 +146,8 @@ void Pythia_NPE_jet() {
 	//Histograms
 	TH1D *hJetSum_conesize[10];
 	TH1D *hNPEFraction_conesize[10];
+	TH1D *hJetSum_ptcut[10];
+	TH1D *hNPEFraction_ptcut[10];
 	
 	for (int i=0; i<5; i++) {
 		hJetSum_conesize[i] = new TH1D(Form("hJetSum_conesize_%d", i), Form("Sum of energy in jet for cone size %d", i), 400, 0.0, 40.0);
@@ -141,13 +177,25 @@ void Pythia_NPE_jet() {
 		
 		int current_event = current_particle.event_no;
 		
+		
+		
+		
 		if (current_event != prev_event && !first_event) { //end of event, build correlation
+			
+			fixed_cone_e_jet(current_jet, event_electrons, event_assoparticles, 0.2);
+
+			for (int i=0; i<5; i++) {
+				hJetSum_conesize[i]->Fill(current_jet.E);
+				hNPEFraction_conesize[i]->Fill(current_jet.e_E/current_jet.E);
+			}
+			
 			for (vector<particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
 				//check electron pt/acceptance
 				double jet_sum = 0.0;
 				double e_pt = 0.0;
 				double htot_E[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
 				double htot_E_ptcut[5] =  {0.0, 0.0, 0.0, 0.0, 0.0};
+				/*
 				if (e_iter->eta < .7 && e_iter->eta > -.7 && e_iter->pt > 3.0 && e_iter->pt < 10.0) {
 					e_pt = e_iter->pt;
 					for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
@@ -168,12 +216,9 @@ void Pythia_NPE_jet() {
 							}
 						}
 					}
-					//at the end of each seed e sum up the jet
-					for (int i=0; i<5; i++) {
-						hJetSum_conesize[i]->Fill(htot_E[i] + e_pt);
-						hNPEFraction_conesize[i]->Fill(e_pt/(htot_E[i] + e_pt));
-					}
+					
 				}
+				 */
 			}
 			event_electrons.clear();
 			event_assoparticles.clear();
@@ -196,12 +241,3 @@ void Pythia_NPE_jet() {
 	outfile->Write();
 	return;
 }
-
-void fixed_cone_e_jet(jet_t& jet, vector<particle_t>::iterator e_iter, vector<particle_t>::iterator asso_iter, double conesize) {
-	
-	jet.E = 0.;
-	jet.E_T = 0.;
-	jet.axisphi = 0.;
-	jet.axiseta = 0.;
-	jet.e_E = 0.;
-};
