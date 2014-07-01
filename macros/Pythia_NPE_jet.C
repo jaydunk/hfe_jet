@@ -84,7 +84,7 @@ bool isInAcceptance(particle_t decay) {
 	return (decay.eta < 1.0 && decay.eta > -1.0);
 }
 
-float dPhi(float phi1, float phi2) {
+float deltaPhi(float phi1, float phi2) {
 	float deltaphi = phi1 - phi2;
 	if(deltaphi < -PI/2.0) deltaphi += 2.0*PI;
 	if(deltaphi > 3.0*PI/2.0) deltaphi -= 2.0*PI;
@@ -93,7 +93,7 @@ float dPhi(float phi1, float phi2) {
 	
 }
 
-void fixed_cone_e_jet(jet_t& jet, vector<particle_t> event_electrons, vector<particle_t> event_assoparticles, double conesize) {
+void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_assoparticles, double conesize) {
 	
 	jet.E = 0.;
 	jet.E_T = 0.;
@@ -101,33 +101,38 @@ void fixed_cone_e_jet(jet_t& jet, vector<particle_t> event_electrons, vector<par
 	jet.axis_eta = 0.;
 	jet.e_E = 0.;
 	
-	for (vector<particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
-		double jet_sum = 0.0;
-		double e_pt = 0.0;
-		double htot_E = 0.0;
-		double htot_pt = 0.0;
-		if (e_iter->eta < .7 && e_iter->eta > -.7 && e_iter->pt > 3.0 && e_iter->pt < 10.0) {
-			e_pt = e_iter->pt;
-			for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
-				if (asso_iter->eta < 1.0 && asso_iter->eta > -1.0) {
-					if (asso_iter->pt < .2) continue;
-					double dEta = asso_iter->eta - e_iter->eta;
-					double dPhi = asso_iter->phi - e_iter->phi;
-					if (sqrt(dEta*dEta + dPhi*dPhi) < conesize) {
-						htot_pt += asso_iter->pt;
-						htot_E += asso_iter->E;
+	double jet_sum = 0.0;
+	double e_pt = 0.0;
+	double htot_E = 0.0;
+	double htot_pt = 0.0;
+	if (event_electron.eta < .7 && event_electron.eta > -.7 && event_electron.pt > 3.0 && event_electron.pt < 10.0) {
+		e_pt = event_electron.pt;
+		for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
+			if (asso_iter->eta < 1.0 && asso_iter->eta > -1.0) {
+				if (asso_iter->pt < .2) continue;
+				double dEta = asso_iter->eta - event_electron.eta;
+				double dPhi = deltaPhi(asso_iter->phi, event_electron.phi);
+				if (sqrt(dEta*dEta + dPhi*dPhi) < conesize) {
+					htot_pt += asso_iter->pt;
+					htot_E += asso_iter->E;
+					cout << "asso_iter->pt = " << asso_iter->pt << endl;
+					cout << "asso_iter->E = " << asso_iter->E << endl;
 					}
 				}
 			}
 		}
-		//make jet
-		jet.E = htot_E;
-		jet.E_T = htot_pt;
-		jet.axis_phi = 0.0; //will update with axis information later
-		jet.axis_eta = 0.0;
-		jet.e_E = e_pt;
-	}
-};
+	htot_E += event_electron.E;
+	htot_pt += event_electron.pt;
+	cout << "htot_E = " << htot_E << endl;
+	cout << "htot_pt = " << htot_pt << endl;
+	
+	//make jet
+	jet.E = htot_E;
+	jet.E_T = htot_pt;
+	jet.axis_phi = 0.0; //will update with axis information later
+	jet.axis_eta = 0.0;
+	jet.e_E = e_pt;
+}
 
 void Pythia_NPE_jet() {
 	
@@ -177,16 +182,19 @@ void Pythia_NPE_jet() {
 		
 		int current_event = current_particle.event_no;
 		
-		
-		
-		
 		if (current_event != prev_event && !first_event) { //end of event, build correlation
 			
-			fixed_cone_e_jet(current_jet, event_electrons, event_assoparticles, 0.2);
+			fixed_cone_e_jet(current_jet, event_electrons.front(), event_assoparticles, 0.2);
 
-			for (int i=0; i<5; i++) {
-				hJetSum_conesize[i]->Fill(current_jet.E);
-				hNPEFraction_conesize[i]->Fill(current_jet.e_E/current_jet.E);
+			//cout << "current_jet.E = " << current_jet.E << endl;
+			//cout << "current_jet.E_T = " << current_jet.E_T << endl;
+			//cout << "current_jet.e_E = " << current_jet.e_E << endl;
+
+			if(current_jet.E > 0.0) { //valid jet fill histograms
+				for (int i=0; i<5; i++) {
+					hJetSum_conesize[i]->Fill(current_jet.E);
+					hNPEFraction_conesize[i]->Fill(current_jet.e_E/current_jet.E);
+				}
 			}
 			
 			for (vector<particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
