@@ -24,13 +24,13 @@ struct particle_t
 	
 	int   id;
 	
-	float E;
+	double E;
 	
-	float pt;
-    float pz;
-    float phi;
-    float eta;
-    float y;
+	double pt;
+	double pz;
+    double phi;
+    double eta;
+    double y;
 	
 	int jet_id;
 	int mother_id;
@@ -116,25 +116,24 @@ void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> 
 	double Ephi = 0.0;
 	double Eeta = 0.0;
 	
-	if (event_electron.eta < .7 && event_electron.eta > -.7 && event_electron.pt > 3.0 && event_electron.pt < 10.0) {
-		e_pt = event_electron.pt;
-		for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
-			if (asso_iter->eta < 1.0 && asso_iter->eta > -1.0) {
-				if (asso_iter->pt < .2) continue;
-				double dEta = asso_iter->eta - event_electron.eta;
-				double dPhi = deltaPhi(asso_iter->phi, event_electron.phi);
-				if (sqrt(dEta*dEta + dPhi*dPhi) < conesize) {
-					htot_pt += asso_iter->pt;
-					htot_E += asso_iter->E;
-					//cout << "asso_iter->pt = " << asso_iter->pt << endl;
-					//cout << "asso_iter->E = " << asso_iter->E << endl;
-					jet.NParticles++;
-					Ephi += deltaPhi(event_electron.phi , asso_iter->phi)*asso_iter->pt; //phi coordinate defined relative to e
-					Eeta += asso_iter->eta*asso_iter->pt;
-					}
-				}
+	e_pt = event_electron.pt;
+	for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
+		if (asso_iter->eta < 1.0 && asso_iter->eta > -1.0) {
+			if (asso_iter->pt < .2) continue;
+			double dEta = asso_iter->eta - event_electron.eta;
+			double dPhi = deltaPhi(asso_iter->phi, event_electron.phi);
+			if (sqrt(dEta*dEta + dPhi*dPhi) < conesize) {
+				htot_pt += asso_iter->pt;
+				htot_E += asso_iter->E;
+				//cout << "asso_iter->pt = " << asso_iter->pt << endl;
+				//cout << "asso_iter->E = " << asso_iter->E << endl;
+				jet.NParticles++;
+				Ephi += deltaPhi(event_electron.phi , asso_iter->phi)*asso_iter->pt; //phi coordinate defined relative to e
+				Eeta += asso_iter->eta*asso_iter->pt;
 			}
 		}
+	}
+
 	jet.NParticles++;
 	htot_E += event_electron.E;
 	htot_pt += event_electron.pt;
@@ -151,6 +150,71 @@ void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> 
 		phi_of_jet -= 2.0*PI;
 	}
 
+	
+	//make jet
+	jet.E = htot_E;
+	jet.E_T = htot_pt;
+	jet.axis_phi = phi_of_jet;
+	jet.axis_eta = Eeta/htot_pt;
+	jet.e_E = e_pt;
+}
+
+void kt_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_assoparticles, double conesize, double power) {
+	
+	jet.NParticles = 0;
+	jet.E = 0.;
+	jet.E_T = 0.;
+	jet.axis_phi = 0.;
+	jet.axis_eta = 0.;
+	jet.e_E = 0.;
+	
+	double jet_sum = 0.0;
+	double e_pt = 0.0;
+	double htot_E = 0.0;
+	double htot_pt = 0.0;
+	
+	double Ephi = 0.0;
+	double Eeta = 0.0;
+	
+	e_pt = event_electron.pt;
+	for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
+		if (asso_iter->eta < 1.0 && asso_iter->eta > -1.0) {
+			if (asso_iter->pt < .2) continue;
+			double dEta = asso_iter->eta - event_electron.eta;
+			double dPhi = deltaPhi(asso_iter->phi, event_electron.phi);
+			double kt1_power = pow(asso_iter->pt, power);
+			double kt2_power = pow(e_pt, power);
+			double kt_power = (kt1_power > kt2_power) ? kt2_power : kt1_power;
+			
+			double distance = kt_power*sqrt(dEta*dEta + dPhi*dPhi);
+			
+			if (distance < conesize) {
+				htot_pt += asso_iter->pt;
+				htot_E += asso_iter->E;
+				//cout << "asso_iter->pt = " << asso_iter->pt << endl;
+				//cout << "asso_iter->E = " << asso_iter->E << endl;
+				jet.NParticles++;
+				Ephi += deltaPhi(event_electron.phi , asso_iter->phi)*asso_iter->pt; //phi coordinate defined relative to e
+				Eeta += asso_iter->eta*asso_iter->pt;
+			}
+		}
+	}
+	jet.NParticles++;
+	htot_E += event_electron.E;
+	htot_pt += event_electron.pt;
+	Eeta += event_electron.eta*event_electron.pt;
+	//cout << "htot_E = " << htot_E << endl;
+	//cout << "htot_pt = " << htot_pt << endl;
+	
+	//calculate phi coordinate
+	double phi_of_jet = event_electron.phi - Ephi/htot_pt;
+	if (phi_of_jet < 0.0) {
+		phi_of_jet += 2.0*PI;
+	} 
+	else if (phi_of_jet > 2.0*PI) {
+		phi_of_jet -= 2.0*PI;
+	}
+	
 	
 	//make jet
 	jet.E = htot_E;
