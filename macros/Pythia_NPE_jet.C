@@ -37,6 +37,8 @@ struct particle_t
 };
 
 struct jet_t {
+	int NParticles;
+	
 	double E;
 	double E_T;
 	double axis_phi;
@@ -86,8 +88,12 @@ bool isInAcceptance(particle_t decay) {
 
 float deltaPhi(float phi1, float phi2) {
 	float deltaphi = phi1 - phi2;
-	if(deltaphi < -PI/2.0) deltaphi += 2.0*PI;
-	if(deltaphi > 3.0*PI/2.0) deltaphi -= 2.0*PI;
+	if (deltaphi > PI) {
+		deltaphi -= 2.0*PI;
+	}
+	else if (deltaphi < -1.0*PI) {
+		deltaphi += 2.0*PI;
+	}
 	
 	return deltaphi;
 	
@@ -95,6 +101,7 @@ float deltaPhi(float phi1, float phi2) {
 
 void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_assoparticles, double conesize) {
 	
+	jet.NParticles = 0;
 	jet.E = 0.;
 	jet.E_T = 0.;
 	jet.axis_phi = 0.;
@@ -105,6 +112,10 @@ void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> 
 	double e_pt = 0.0;
 	double htot_E = 0.0;
 	double htot_pt = 0.0;
+	
+	double Ephi = 0.0;
+	double Eeta = 0.0;
+	
 	if (event_electron.eta < .7 && event_electron.eta > -.7 && event_electron.pt > 3.0 && event_electron.pt < 10.0) {
 		e_pt = event_electron.pt;
 		for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
@@ -115,16 +126,19 @@ void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> 
 				if (sqrt(dEta*dEta + dPhi*dPhi) < conesize) {
 					htot_pt += asso_iter->pt;
 					htot_E += asso_iter->E;
-					cout << "asso_iter->pt = " << asso_iter->pt << endl;
-					cout << "asso_iter->E = " << asso_iter->E << endl;
+					//cout << "asso_iter->pt = " << asso_iter->pt << endl;
+					//cout << "asso_iter->E = " << asso_iter->E << endl;
+					jet.NParticles++;
+					Ephi += asso_iter->phi;
 					}
 				}
 			}
 		}
+	jet.NParticles++;
 	htot_E += event_electron.E;
 	htot_pt += event_electron.pt;
-	cout << "htot_E = " << htot_E << endl;
-	cout << "htot_pt = " << htot_pt << endl;
+	//cout << "htot_E = " << htot_E << endl;
+	//cout << "htot_pt = " << htot_pt << endl;
 	
 	//make jet
 	jet.E = htot_E;
@@ -150,16 +164,21 @@ void Pythia_NPE_jet() {
 	
 	//Histograms
 	TH1D *hJetSum_conesize[10];
+	TH1D *hJet_ET_conesize[10];
 	TH1D *hNPEFraction_conesize[10];
 	TH1D *hJetSum_ptcut[10];
 	TH1D *hNPEFraction_ptcut[10];
+	TH1D *hNParticles_conesize[10];
 	
 	for (int i=0; i<5; i++) {
 		hJetSum_conesize[i] = new TH1D(Form("hJetSum_conesize_%d", i), Form("Sum of energy in jet for cone size %d", i), 400, 0.0, 40.0);
+		hJet_ET_conesize[i] = new TH1D(Form("hJet_ET_conesize_%d", i), Form("Sum of E_T in jet for cone size %d", i), 400, 0.0, 40.0);
 		hNPEFraction_conesize[i] = new TH1D(Form("hNPEFraction_conesize_%d", i), Form("NPE/jettotal for cone size %d", i), 100, 0.0, 1.0);
 		
-		hJetSum_ptcut[i] = new TH1D(Form("hJetSum_ptcut_%d", i), Form("Sum of energy in jet for pt cut %d", i), 400, 0.0, 40.0);
-		hNPEFraction_ptcut[i] = new TH1D(Form("hNPEFraction_ptcut_%d", i), Form("NPE/jettotal for pt cut %d", i), 100, 0.0, 1.0);
+		//hJetSum_ptcut[i] = new TH1D(Form("hJetSum_ptcut_%d", i), Form("Sum of energy in jet for pt cut %d", i), 400, 0.0, 40.0);
+		//hNPEFraction_ptcut[i] = new TH1D(Form("hNPEFraction_ptcut_%d", i), Form("NPE/jettotal for pt cut %d", i), 100, 0.0, 1.0);
+		
+		hNParticles_conesize[i] = new TH1D(Form("hNParticles_conesize_%d", i), Form("NParticles in jet for conesize %d", i), 20, 0, 20);
 	}
 	
 	particle_t current_particle;
@@ -184,16 +203,22 @@ void Pythia_NPE_jet() {
 		
 		if (current_event != prev_event && !first_event) { //end of event, build correlation
 			
-			fixed_cone_e_jet(current_jet, event_electrons.front(), event_assoparticles, 0.2);
+			for (vector<particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
+	
+				if (e_iter->pt < 3 || e_iter->pt > 10 || e_iter->eta > .7 || e_iter->eta < -.7) continue; 
+				fixed_cone_e_jet(current_jet, (*e_iter), event_assoparticles, 0.3);
 
-			//cout << "current_jet.E = " << current_jet.E << endl;
-			//cout << "current_jet.E_T = " << current_jet.E_T << endl;
-			//cout << "current_jet.e_E = " << current_jet.e_E << endl;
+				cout << "current_jet.E = " << current_jet.E << endl;
+				cout << "current_jet.E_T = " << current_jet.E_T << endl;
+				cout << "current_jet.e_E = " << current_jet.e_E << endl;
 
-			if(current_jet.E > 0.0) { //valid jet fill histograms
-				for (int i=0; i<5; i++) {
-					hJetSum_conesize[i]->Fill(current_jet.E);
-					hNPEFraction_conesize[i]->Fill(current_jet.e_E/current_jet.E);
+				if(current_jet.E > 0.0) { //valid jet fill histograms
+					for (int i=0; i<5; i++) {
+						hJetSum_conesize[i]->Fill(current_jet.E);
+						hJet_ET_conesize[i]->Fill(current_jet.E_T);
+						hNPEFraction_conesize[i]->Fill(current_jet.e_E/current_jet.E);
+						hNParticles_conesize[i]->Fill(current_jet.NParticles);
+					}
 				}
 			}
 			
