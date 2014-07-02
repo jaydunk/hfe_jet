@@ -129,7 +129,8 @@ void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> 
 					//cout << "asso_iter->pt = " << asso_iter->pt << endl;
 					//cout << "asso_iter->E = " << asso_iter->E << endl;
 					jet.NParticles++;
-					Ephi += asso_iter->phi;
+					Ephi += deltaPhi(event_electron.phi , asso_iter->phi)*asso_iter->pt; //phi coordinate defined relative to e
+					Eeta += asso_iter->eta*asso_iter->pt;
 					}
 				}
 			}
@@ -137,14 +138,25 @@ void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> 
 	jet.NParticles++;
 	htot_E += event_electron.E;
 	htot_pt += event_electron.pt;
+	Eeta += event_electron.eta*event_electron.pt;
 	//cout << "htot_E = " << htot_E << endl;
 	//cout << "htot_pt = " << htot_pt << endl;
+	
+	//calculate phi coordinate
+	double phi_of_jet = event_electron.phi - Ephi/htot_pt;
+	if (phi_of_jet < 0.0) {
+		phi_of_jet += 2.0*PI;
+	} 
+	else if (phi_of_jet > 2.0*PI) {
+		phi_of_jet -= 2.0*PI;
+	}
+
 	
 	//make jet
 	jet.E = htot_E;
 	jet.E_T = htot_pt;
-	jet.axis_phi = 0.0; //will update with axis information later
-	jet.axis_eta = 0.0;
+	jet.axis_phi = phi_of_jet;
+	jet.axis_eta = Eeta/htot_pt;
 	jet.e_E = e_pt;
 }
 
@@ -181,6 +193,9 @@ void Pythia_NPE_jet() {
 		hNParticles_conesize[i] = new TH1D(Form("hNParticles_conesize_%d", i), Form("NParticles in jet for conesize %d", i), 20, 0, 20);
 	}
 	
+	TH1D *hjet_phi = new TH1D("hjet_phi", "phi centroid of jet", 100, 0, 2.0*PI);
+	TH1D *hjet_eta = new TH1D("hjet_eta", "eta centroid of jet", 100, -1.0, 1.0);
+	
 	particle_t current_particle;
 	vector<particle_t> event_electrons;
 	vector<particle_t> event_assoparticles;
@@ -208,9 +223,9 @@ void Pythia_NPE_jet() {
 				if (e_iter->pt < 3 || e_iter->pt > 10 || e_iter->eta > .7 || e_iter->eta < -.7) continue; 
 				fixed_cone_e_jet(current_jet, (*e_iter), event_assoparticles, 0.3);
 
-				cout << "current_jet.E = " << current_jet.E << endl;
-				cout << "current_jet.E_T = " << current_jet.E_T << endl;
-				cout << "current_jet.e_E = " << current_jet.e_E << endl;
+				//cout << "current_jet.E = " << current_jet.E << endl;
+				//cout << "current_jet.E_T = " << current_jet.E_T << endl;
+				//cout << "current_jet.e_E = " << current_jet.e_E << endl;
 
 				if(current_jet.E > 0.0) { //valid jet fill histograms
 					for (int i=0; i<5; i++) {
@@ -219,6 +234,8 @@ void Pythia_NPE_jet() {
 						hNPEFraction_conesize[i]->Fill(current_jet.e_E/current_jet.E);
 						hNParticles_conesize[i]->Fill(current_jet.NParticles);
 					}
+					hjet_phi->Fill(current_jet.axis_phi);
+					hjet_eta->Fill(current_jet.axis_eta);
 				}
 			}
 			
