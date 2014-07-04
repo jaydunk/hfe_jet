@@ -159,7 +159,7 @@ void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> 
 	jet.e_E = e_pt;
 }
 
-void kt_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_assoparticles, double conesize, double power) {
+void kt_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_assoparticles, double power) {
 	
 	jet.NParticles = 0;
 	jet.E = 0.;
@@ -182,13 +182,19 @@ void kt_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_as
 			if (asso_iter->pt < .2) continue;
 			double dEta = asso_iter->eta - event_electron.eta;
 			double dPhi = deltaPhi(asso_iter->phi, event_electron.phi);
-			double kt1_power = pow(asso_iter->pt, power);
-			double kt2_power = pow(e_pt, power);
+			double kt1_power = pow(asso_iter->pt, 2.0*power);
+			double kt2_power = pow(e_pt, 2.0*power);
 			double kt_power = (kt1_power > kt2_power) ? kt2_power : kt1_power;
+			
+			cout << "kt1_power: " << kt1_power << endl;
+			cout << "kt2_power: " << kt2_power << endl;
+			cout << "kt_power: " << kt_power << endl;
 			
 			double distance = kt_power*sqrt(dEta*dEta + dPhi*dPhi);
 			
-			if (distance < conesize) {
+			double dBeam = pow(asso_iter->pt, 2.0*power);
+			
+			if (distance < dBeam) {
 				htot_pt += asso_iter->pt;
 				htot_E += asso_iter->E;
 				//cout << "asso_iter->pt = " << asso_iter->pt << endl;
@@ -285,13 +291,13 @@ void Pythia_NPE_jet() {
 			for (vector<particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
 	
 				if (e_iter->pt < 3 || e_iter->pt > 10 || e_iter->eta > .7 || e_iter->eta < -.7) continue; 
-				fixed_cone_e_jet(current_jet, (*e_iter), event_assoparticles, 0.3);
-
+				//fixed_cone_e_jet(current_jet, (*e_iter), event_assoparticles, 0.3);
+				kt_e_jet(current_jet, (*e_iter), event_assoparticles, 1.0);
 				//cout << "current_jet.E = " << current_jet.E << endl;
 				//cout << "current_jet.E_T = " << current_jet.E_T << endl;
 				//cout << "current_jet.e_E = " << current_jet.e_E << endl;
 
-				if(current_jet.E > 0.0) { //valid jet fill histograms
+				if(current_jet.E > 0.0/* && current_jet.NParticles >= 2*/) { //valid jet fill histograms, at least one clustered particle
 					for (int i=0; i<5; i++) {
 						hJetSum_conesize[i]->Fill(current_jet.E);
 						hJet_ET_conesize[i]->Fill(current_jet.E_T);
@@ -303,37 +309,6 @@ void Pythia_NPE_jet() {
 				}
 			}
 			
-			for (vector<particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
-				//check electron pt/acceptance
-				double jet_sum = 0.0;
-				double e_pt = 0.0;
-				double htot_E[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
-				double htot_E_ptcut[5] =  {0.0, 0.0, 0.0, 0.0, 0.0};
-				/*
-				if (e_iter->eta < .7 && e_iter->eta > -.7 && e_iter->pt > 3.0 && e_iter->pt < 10.0) {
-					e_pt = e_iter->pt;
-					for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
-						if (asso_iter->eta < 1.0 && asso_iter->eta > -1.0) {
-							if (asso_iter->pt < .2) continue;
-							double dEta = asso_iter->eta - e_iter->eta;
-							double dPhi = asso_iter->phi - e_iter->phi;
-							double minimum_jet_cone_size = 0.2;
-							for (int jet_cone_inc_number = 0; jet_cone_inc_number<5; jet_cone_inc_number++) {
-								if (sqrt(dEta*dEta + dPhi*dPhi) < (minimum_jet_cone_size + .1*jet_cone_inc_number)) {
-									htot_E[jet_cone_inc_number] += asso_iter->pt;
-								}
-							}
-							for (int pt_low_cutoff_index = 0; pt_low_cutoff_index < 5; pt_low_cutoff_index++) {
-								if (asso_iter->pt > (.2 + .1*pt_low_cutoff_index)) {
-									htot_E_ptcut[pt_low_cutoff_index] += asso_iter->pt; 
-								}
-							}
-						}
-					}
-					
-				}
-				 */
-			}
 			event_electrons.clear();
 			event_assoparticles.clear();
 		}
