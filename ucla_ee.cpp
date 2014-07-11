@@ -72,10 +72,42 @@
 #define Phibin 80
 #define PR(x) std::cout << #x << " = " << (x) << std::endl;
 
-
+TH1D *hptHat = new TH1D("hptHat", "ptHat", 200, 0.0, 20.0);
 
 
 using namespace Pythia8; 
+
+//UserHooks derived class
+
+class PtWeightUserHooks : public UserHooks {
+	
+public:
+	
+	PtWeightUserHooks() {
+	}
+	~PtWeightUserHooks() {
+	}
+	
+	bool canBiasSelection() {return true;}
+	
+	double biasSelectionBy(const SigmaProcess *sigmaProcessPtr, const PhaseSpace *phaseSpacePtr, bool inEvent);
+};
+
+//implementation
+double PtWeightUserHooks::biasSelectionBy(const SigmaProcess *sigmaProcessPtr, const PhaseSpace *phaseSpacePtr, bool inEvent) {
+	double selBias = 1.0;
+	
+	if(sigmaProcessPtr->nFinal() == 2) {
+		double pTHat = phaseSpacePtr->pTHat();
+		hptHat->Fill(pTHat);
+		
+		//cout << "pHat " << pTHat << endl;
+		selBias = 1.0;//(pTHat*pTHat*pTHat*pTHat);
+	}
+	
+	return selBias;
+}
+
 /*
 struct hfedecay_t
 {
@@ -254,6 +286,9 @@ int main(int argc, char* argv[]) {
     bool showAS    = settings.flag("Main:showAllSettings");
     int  pace = maxNumberOfEvents/nShow;
     	
+	PtWeightUserHooks *pt_userhooks = new PtWeightUserHooks();
+	pythia.setUserHooksPtr(pt_userhooks);
+	
     //
     //  Remark: in this example we do NOT alter the
     //  BRs since they are different for the various charm
