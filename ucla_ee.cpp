@@ -98,11 +98,16 @@ double PtWeightUserHooks::biasSelectionBy(const SigmaProcess *sigmaProcessPtr, c
 	double selBias = 1.0;
 	
 	if(sigmaProcessPtr->nFinal() == 2) {
+				
 		double pTHat = phaseSpacePtr->pTHat();
 		hptHat->Fill(pTHat);
 		
 		//cout << "pHat " << pTHat << endl;
-		selBias = 1.0;//(pTHat*pTHat*pTHat*pTHat);
+		selBias = 1.0;//pTHat*pTHat*pTHat*pTHat;
+		//setting sel bias to account for RAA
+		//selBias = pow((1+pTHat/.3), 8.3) * pow(1/(1+.3/*S_0*/) + pTHat/.3, -8.3) * pow(1+.3, 2 - 8.3);
+		//cout << "pTHat " << pTHat << endl;
+		//cout << "selBias " << selBias << endl;
 	}
 	
 	return selBias;
@@ -169,9 +174,43 @@ struct particle_t
 	int mother_id;
 };
 
+struct final_state_particle_t
+{
+	int event_no;
+	
+	int   id;
+	
+	float E;
+	float pt;
+    float pz;
+    float phi;
+    float eta;
+    float y;
+	
+	int jet_id;
+	
+	int mother_id;
+	
+	float mother_E;
+	float mother_pt;
+	float mother_pz;
+    float mother_phi;
+    float mother_eta;
+    float mother_y;
+	
+	int HFQ_id;
+	
+	float HFQ_E;
+	float HFQ_pt;
+	float HFQ_pz;
+    float HFQ_phi;
+    float HFQ_eta;
+    float HFQ_y;
+};
+
 //hfedecay_t hfe_event;
 
-particle_t asso_particle;
+final_state_particle_t asso_particle;
 particle_t upsilon_daughter;
 
 // stores data in tuple)
@@ -190,7 +229,18 @@ int Flavor(int id)
 }	
 
 
-
+float deltaPhi(float phi1, float phi2) {
+	float deltaphi = phi1 - phi2;
+	if (deltaphi > PI) {
+		deltaphi -= 2.0*PI;
+	}
+	else if (deltaphi < -1.0*PI) {
+		deltaphi += 2.0*PI;
+	}
+	
+	return deltaphi;
+	
+}
 
 
 
@@ -221,7 +271,10 @@ int main(int argc, char* argv[]) {
 				"event_no/I:"
 				"id/I:E/F:pt/F:pz/F:phi/F:eta/F:y/F:"
 				"jet_id/I:"
-				"mother_id/I");
+				"mother_id/I:"
+				"mother_E/F:mother_pt/F:mother_pz/F:mother_phi/F:mother_eta/F:mother_y/F:"
+				"HFQ_id/I:"
+				"HFQ_E/F:HFQ_pt/F:HFQ_pz/F:HFQ_phi/F:HFQ_eta/F:HFQ_y/F");
     TH1F *hfid = new TH1F("hfid","id for any particles",12000,-6000,6000);
     TH1F *htally  = new TH1F("htally","tally",100,-0.5,99.5);
     TH1F *hdPhihh[6][2];
@@ -239,7 +292,12 @@ int main(int argc, char* argv[]) {
     TH1F *hPt1 = new TH1F("hPt1","Pt of trigger hadrons",110,0,11);
     TH1F *hPt = new TH1F("hPt","Pt of associated hadrons",100,0,10);
 
+	TH1F *hPtQ = new TH1F("hPtQ", "Pt of heavy flavor quark", 100, 0.0, 20.0);
 	TH1F *hHFePt = new TH1F("hHFePt", "Pt of electron from HF decay", 100, 0.0, 20.0);
+	TH2F *hQQPt_corr = new TH2F("hQQPt_corr", "HF quark pt correlation", 100, 0.0, 20.0, 100, 0.0, 20.0);
+	TH1F *hQQdPhi_corr = new TH1F("hQQdPhi_corr", "HF quark dPhi correlation", 80, -PI, PI);
+	TH2F *hPtCorr_e_HFQ = new TH2F("hPtCorr_e_HFQ", "Correlation of pt between e and heavy flavor quark", 100, 0.0, 20.0, 100, 0.0, 20.0);
+	TH2F *hPhiCorr_e_HFQ = new TH2F("hPhiCorr_e_HFQ", "Correlation of phi cooridinate between e and heavy flavor quark", 80, -PI, PI, 80, -PI, PI);
 	
     TH1F *hNpartons=new TH1F("hNpartons","number of partons in one event",100,-0.5,99.5);
 	TH1F *hNHFpartons = new TH1F("hNHFpartons", "Number of HF partons per event", 10, -.5, 9.5);
@@ -346,6 +404,12 @@ int main(int argc, char* argv[]) {
 		jetidarray[i] = -1;
 	}
 		
+	particle_t HFQ[2];
+	int HFQ_particle_index[2];
+	int HFQ_counter = 0;
+	bool nohquark = true;
+	bool nohantiquark = true;
+		
 	htally->Fill(0);
 	if(mPrint)cout<<"to start the 1st loop"<<endl;
 	for (int i = 0; i < event.size(); i++) 
@@ -363,8 +427,35 @@ int main(int argc, char* argv[]) {
 			jetidarray[i] = 2;
 		}
 		
-		if(event[i].isFinal()==true) continue;//not trying to find final particles now
-		if(event[event[i].mother1()].id()==event[i].id())continue; //recoil
+		if (event[i].isFinal()==true) continue;//not trying to find final particles now
+		if (event[event[i].mother1()].id()==event[i].id())continue; //recoil
+		
+		if (fabs(event[i].id()) == 4 || fabs(event[i].id()) == 5) {
+			if (event[i].id() > 0) {
+				nohquark = false;
+			}
+			else {
+				nohantiquark = false;
+			}
+
+			hPtQ->Fill(event[i].pT());
+			if(HFQ_counter < 2) {
+				HFQ_particle_index[HFQ_counter] = i;
+				
+				HFQ[HFQ_counter].id = event[i].id();
+				HFQ[HFQ_counter].E  = event[i].e();
+				HFQ[HFQ_counter].pt = event[i].pT();
+				HFQ[HFQ_counter].pz = event[i].pz();
+				HFQ[HFQ_counter].phi = event[i].phi();
+				HFQ[HFQ_counter].eta = event[i].eta();
+				HFQ[HFQ_counter].y = event[i].y();
+				
+				HFQ[HFQ_counter].jet_id = -999;
+				HFQ[HFQ_counter].mother_id = event[event[i].mother1()].id();
+			}
+			HFQ_counter++;
+		}
+		
 		if(Flavor(event[i].id()) == 4 || Flavor(event[i].id())==5 )	//
 		{
 			htally->Fill(2);
@@ -389,6 +480,11 @@ int main(int argc, char* argv[]) {
 		}
 	}//the main purpose of first loop is to decide whether this is a heavy flavor event or not, 
 
+	if (!(nohquark || nohantiquark)) { //first heavy flavor qqbar pair
+		hQQPt_corr->Fill(HFQ[0].pt, HFQ[1].pt);
+		hQQdPhi_corr->Fill(deltaPhi(HFQ[0].phi, HFQ[1].phi));
+	}
+		
 	hNHFpartons->Fill(nhfpartons);	
 	hNHFelectrons->Fill(nhfe);	
 		
@@ -407,7 +503,33 @@ int main(int argc, char* argv[]) {
 				asso_particle.y = event[i].y();
 				
 				asso_particle.jet_id = jetidarray[i];
+				
 				asso_particle.mother_id = event[event[i].mother1()].id();
+				asso_particle.mother_E  = event[event[i].mother1()].e();
+				asso_particle.mother_pt = event[event[i].mother1()].pT();
+				asso_particle.mother_pz = event[event[i].mother1()].pz();
+				asso_particle.mother_phi = event[event[i].mother1()].phi();
+				asso_particle.mother_eta = event[event[i].mother1()].eta();
+				asso_particle.mother_y = event[event[i].mother1()].y();
+				
+				//associate with closer HFQ in phi (potentially not exact but i dont think its a huge problem)
+				double dphi0 = (fabs(event[i].phi() - HFQ[0].phi) < PI) ? fabs(event[i].phi() - HFQ[0].phi) : 2.0*PI - fabs(event[i].phi() - HFQ[0].phi); 
+				double dphi1 = (fabs(event[i].phi() - HFQ[1].phi) < PI) ? fabs(event[i].phi() - HFQ[1].phi) : 2.0*PI - fabs(event[i].phi() - HFQ[1].phi);
+				int asso_HFQ_index = (dphi0 < dphi1) ? 0 : 1;
+				
+				asso_particle.HFQ_id = HFQ[asso_HFQ_index].id;
+				asso_particle.HFQ_E  = HFQ[asso_HFQ_index].E;
+				asso_particle.HFQ_pt = HFQ[asso_HFQ_index].pt;
+				asso_particle.HFQ_pz = HFQ[asso_HFQ_index].pz;
+				asso_particle.HFQ_phi = HFQ[asso_HFQ_index].phi;
+				asso_particle.HFQ_eta = HFQ[asso_HFQ_index].eta;
+				asso_particle.HFQ_y = HFQ[asso_HFQ_index].y;
+				
+				//plot association for HF e
+				if (fabs(event[i].id()) == 11) {
+					hPtCorr_e_HFQ->Fill(HFQ[asso_HFQ_index].pt ,event[i].pT());
+					hPhiCorr_e_HFQ->Fill(HFQ[asso_HFQ_index].phi ,event[i].phi());
+				}
 				
 				tree.Fill();
 			}
