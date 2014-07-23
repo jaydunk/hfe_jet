@@ -27,7 +27,7 @@
 # This is not part of the star_hf tune (just convenient)
 # Documentation: <pyhiadir>/htmldoc/MainProgramSettings.html
 #------------------------------------------------------------------------------
-Main:numberOfEvents = 25000000    ! number of events to generate
+Main:numberOfEvents = 250000    ! number of events to generate
 Main:numberToList = 0              ! number of events to print
 Main:timesToShow = 100             ! show how far along run is this many times
 Main:timesAllowErrors = 1000        ! abort run after this many flawed events
@@ -130,7 +130,7 @@ SigmaProcess:factorMultFac = 2   ! 2mT
 # number of events) to compile the final complete spectra.
 # Documentation: <pyhiadir>/htmldoc/PhaseSpaceCuts.html
 #------------------------------------------------------------------------------
-PhaseSpace:pTHatMin = 0 
+PhaseSpace:pTHatMin = 5 
 PhaseSpace:pTHatMax = -1
 
 #------------------------------------------------------------------------------

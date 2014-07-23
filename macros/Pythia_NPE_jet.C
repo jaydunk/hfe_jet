@@ -18,36 +18,52 @@
 #include "TTree.h"
 #define PI 3.141592654
 
-struct particle_t
+struct final_state_particle_t
 {
 	int event_no;
 	
 	int   id;
 	
-	double E;
-	
-	double pt;
-	double pz;
-    double phi;
-    double eta;
-    double y;
+	float E;
+	float pt;
+    float pz;
+    float phi;
+    float eta;
+    float y;
 	
 	int jet_id;
+	
 	int mother_id;
+	
+	float mother_E;
+	float mother_pt;
+	float mother_pz;
+    float mother_phi;
+    float mother_eta;
+    float mother_y;
+	
+	int HFQ_id;
+	
+	float HFQ_E;
+	float HFQ_pt;
+	float HFQ_pz;
+    float HFQ_phi;
+    float HFQ_eta;
+    float HFQ_y;
 };
 
 struct jet_t {
 	int NParticles;
 	
-	double E;
-	double E_T;
-	double axis_phi;
-	double axis_eta;
-	double e_E;
+	float E;
+	float E_T;
+	float axis_phi;
+	float axis_eta;
+	float e_E;
 };
 
 //calculate pt bins
-int calc_asso_pt_bin(double asso_pt) {
+int calc_asso_pt_bin(float asso_pt) {
 	int asso_pt_bin = -1;
 	if(asso_pt > 0.2 && asso_pt < 0.3) asso_pt_bin = 0;
 	else if(asso_pt > 0.3 && asso_pt < 0.4) asso_pt_bin = 1;
@@ -63,7 +79,7 @@ int calc_asso_pt_bin(double asso_pt) {
 	return asso_pt_bin;
 }
 
-int calc_prim_pt_bin(double prim_pt) {
+int calc_prim_pt_bin(float prim_pt) {
 	
 	int prim_pt_bin = -1;
 	if(prim_pt<=1.0) prim_pt_bin = 0;
@@ -82,7 +98,7 @@ int calc_prim_pt_bin(double prim_pt) {
 }
 
 
-bool isInAcceptance(particle_t decay) {
+bool isInAcceptance(final_state_particle_t decay) {
 	return (decay.eta < 1.0 && decay.eta > -1.0);
 }
 
@@ -99,7 +115,7 @@ float deltaPhi(float phi1, float phi2) {
 	
 }
 
-void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_assoparticles, double conesize) {
+void fixed_cone_e_jet(jet_t& jet, final_state_particle_t event_electron, vector<final_state_particle_t> event_assoparticles, float conesize) {
 	
 	jet.NParticles = 0;
 	jet.E = 0.;
@@ -108,20 +124,20 @@ void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> 
 	jet.axis_eta = 0.;
 	jet.e_E = 0.;
 	
-	double jet_sum = 0.0;
-	double e_pt = 0.0;
-	double htot_E = 0.0;
-	double htot_pt = 0.0;
+	float jet_sum = 0.0;
+	float e_pt = 0.0;
+	float htot_E = 0.0;
+	float htot_pt = 0.0;
 	
-	double Ephi = 0.0;
-	double Eeta = 0.0;
+	float Ephi = 0.0;
+	float Eeta = 0.0;
 	
 	e_pt = event_electron.pt;
-	for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
+	for (vector<final_state_particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
 		if (asso_iter->eta < 1.0 && asso_iter->eta > -1.0) {
 			if (asso_iter->pt < .2) continue;
-			double dEta = asso_iter->eta - event_electron.eta;
-			double dPhi = deltaPhi(asso_iter->phi, event_electron.phi);
+			float dEta = asso_iter->eta - event_electron.eta;
+			float dPhi = deltaPhi(asso_iter->phi, event_electron.phi);
 			if (sqrt(dEta*dEta + dPhi*dPhi) < conesize) {
 				htot_pt += asso_iter->pt;
 				htot_E += asso_iter->E;
@@ -142,7 +158,7 @@ void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> 
 	//cout << "htot_pt = " << htot_pt << endl;
 	
 	//calculate phi coordinate
-	double phi_of_jet = event_electron.phi - Ephi/htot_pt;
+	float phi_of_jet = event_electron.phi - Ephi/htot_pt;
 	if (phi_of_jet < 0.0) {
 		phi_of_jet += 2.0*PI;
 	} 
@@ -158,8 +174,8 @@ void fixed_cone_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> 
 	jet.axis_eta = Eeta/htot_pt;
 	jet.e_E = e_pt;
 }
-
-void kt_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_assoparticles, double power) {
+/*
+void kt_e_jet(jet_t& jet, final_state_particle_t event_electron, vector<final_state_particle_t> event_assoparticles, float power) {
 	
 	jet.NParticles = 0;
 	jet.E = 0.;
@@ -168,31 +184,31 @@ void kt_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_as
 	jet.axis_eta = 0.;
 	jet.e_E = 0.;
 	
-	double jet_sum = 0.0;
-	double e_pt = 0.0;
-	double htot_E = 0.0;
-	double htot_pt = 0.0;
+	float jet_sum = 0.0;
+	float e_pt = 0.0;
+	float htot_E = 0.0;
+	float htot_pt = 0.0;
 	
-	double Ephi = 0.0;
-	double Eeta = 0.0;
+	float Ephi = 0.0;
+	float Eeta = 0.0;
 	
 	e_pt = event_electron.pt;
-	for (vector<particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
+	for (vector<final_state_particle_t>::iterator asso_iter = event_assoparticles.begin(); asso_iter != event_assoparticles.end(); asso_iter++) {
 		if (asso_iter->eta < 1.0 && asso_iter->eta > -1.0) {
 			if (asso_iter->pt < .2) continue;
-			double dEta = asso_iter->eta - event_electron.eta;
-			double dPhi = deltaPhi(asso_iter->phi, event_electron.phi);
-			double kt1_power = pow(asso_iter->pt, 2.0*power);
-			double kt2_power = pow(e_pt, 2.0*power);
-			double kt_power = (kt1_power > kt2_power) ? kt2_power : kt1_power;
+			float dEta = asso_iter->eta - event_electron.eta;
+			float dPhi = deltaPhi(asso_iter->phi, event_electron.phi);
+			float kt1_power = pow(asso_iter->pt, 2.0*power);
+			float kt2_power = pow(e_pt, 2.0*power);
+			float kt_power = (kt1_power > kt2_power) ? kt2_power : kt1_power;
 			
-			cout << "kt1_power: " << kt1_power << endl;
-			cout << "kt2_power: " << kt2_power << endl;
-			cout << "kt_power: " << kt_power << endl;
+			//cout << "kt1_power: " << kt1_power << endl;
+			//cout << "kt2_power: " << kt2_power << endl;
+			//cout << "kt_power: " << kt_power << endl;
 			
-			double distance = kt_power*sqrt(dEta*dEta + dPhi*dPhi);
+			float distance = kt_power*sqrt(dEta*dEta + dPhi*dPhi);
 			
-			double dBeam = pow(asso_iter->pt, 2.0*power);
+			float dBeam = pow(asso_iter->pt, 2.0*power);
 			
 			if (distance < dBeam) {
 				htot_pt += asso_iter->pt;
@@ -213,7 +229,7 @@ void kt_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_as
 	//cout << "htot_pt = " << htot_pt << endl;
 	
 	//calculate phi coordinate
-	double phi_of_jet = event_electron.phi - Ephi/htot_pt;
+	float phi_of_jet = event_electron.phi - Ephi/htot_pt;
 	if (phi_of_jet < 0.0) {
 		phi_of_jet += 2.0*PI;
 	} 
@@ -229,7 +245,7 @@ void kt_e_jet(jet_t& jet, particle_t event_electron, vector<particle_t> event_as
 	jet.axis_eta = Eeta/htot_pt;
 	jet.e_E = e_pt;
 }
-
+*/
 void Pythia_NPE_jet() {
 	
 	string inputfiles;
@@ -241,7 +257,7 @@ void Pythia_NPE_jet() {
 	nfile += chain->Add(inputfiles.data());
 	cout << "Added " << nfile << " to chain." << endl;
 	
-	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_jet_output.root";
+	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_awayjet_study_output.root";
 	TFile *outfile = new TFile(ofname.data(), "RECREATE");
 	
 	//Histograms
@@ -266,9 +282,13 @@ void Pythia_NPE_jet() {
 	TH1D *hjet_phi = new TH1D("hjet_phi", "phi centroid of jet", 100, 0, 2.0*PI);
 	TH1D *hjet_eta = new TH1D("hjet_eta", "eta centroid of jet", 100, -1.0, 1.0);
 	
-	particle_t current_particle;
-	vector<particle_t> event_electrons;
-	vector<particle_t> event_assoparticles;
+	TH1D *hawayside_Etot = new TH1D("hawayside_Etot", "Total energy in away side cone", 400, 0.0, 40.0);
+	TH1D *hdPhi_mother = new TH1D("hdPhi_mother", "dPhi of electron to parent particle", 80, -PI, PI);
+	TH1D *hdPhi_HFQ = new TH1D("hdPhi_HFQ", "dPhi of electron to initial heavy flavor quark", 80, -PI, PI);
+	
+	final_state_particle_t current_particle;
+	vector<final_state_particle_t> event_electrons;
+	vector<final_state_particle_t> event_assoparticles;
 	
 	chain->SetBranchAddress("asso_particle", &current_particle);
 	
@@ -288,11 +308,15 @@ void Pythia_NPE_jet() {
 		
 		if (current_event != prev_event && !first_event) { //end of event, build correlation
 			
-			for (vector<particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
+			for (vector<final_state_particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
 	
 				if (e_iter->pt < 3 || e_iter->pt > 10 || e_iter->eta > .7 || e_iter->eta < -.7) continue; 
-				//fixed_cone_e_jet(current_jet, (*e_iter), event_assoparticles, 0.3);
-				kt_e_jet(current_jet, (*e_iter), event_assoparticles, 1.0);
+				
+				hdPhi_mother->Fill(deltaPhi(e_iter->phi, e_iter->mother_phi));
+				hdPhi_HFQ->Fill(deltaPhi(e_iter->phi, e_iter->HFQ_phi));
+				
+				fixed_cone_e_jet(current_jet, (*e_iter), event_assoparticles, 0.3);
+				//kt_e_jet(current_jet, (*e_iter), event_assoparticles, 1.0);
 				//cout << "current_jet.E = " << current_jet.E << endl;
 				//cout << "current_jet.E_T = " << current_jet.E_T << endl;
 				//cout << "current_jet.e_E = " << current_jet.e_E << endl;
@@ -306,6 +330,23 @@ void Pythia_NPE_jet() {
 					}
 					hjet_phi->Fill(current_jet.axis_phi);
 					hjet_eta->Fill(current_jet.axis_eta);
+					
+					//loop through all FS particles and sum up those in away side jet
+					float away_jet_axis_phi = -current_jet.axis_phi;
+					float away_jet_axis_eta = -current_jet.axis_eta;
+					float away_jet_Etot = 0.0;
+					for (vector<final_state_particle_t>::iterator fs_iter = event_assoparticles.begin(); fs_iter != event_assoparticles.end(); fs_iter++) {
+						if (fs_iter->eta < 1.0 && fs_iter->eta > -1.0 && fs_iter->pt > .2) { //acceptance cuts
+							float dEta = fs_iter->eta - away_jet_axis_eta;
+							float dPhi = deltaPhi(fs_iter->phi, away_jet_axis_phi);
+							if (sqrt(dEta*dEta + dPhi*dPhi) < 0.5) { //within the away side cone
+								away_jet_Etot += fs_iter->pt;
+							}
+						}
+					}
+	
+					hawayside_Etot->Fill(away_jet_Etot);
+					
 				}
 			}
 			
