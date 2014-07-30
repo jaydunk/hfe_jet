@@ -257,7 +257,7 @@ void Pythia_NPE_jet() {
 	nfile += chain->Add(inputfiles.data());
 	cout << "Added " << nfile << " to chain." << endl;
 	
-	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_awayjet_study_output.root";
+	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_awayjet_5GeV_cutoff_25M_tight_eta_output.root";
 	TFile *outfile = new TFile(ofname.data(), "RECREATE");
 	
 	//Histograms
@@ -286,6 +286,10 @@ void Pythia_NPE_jet() {
 	TH1D *hdPhi_mother = new TH1D("hdPhi_mother", "dPhi of electron to parent particle", 80, -PI, PI);
 	TH1D *hdPhi_HFQ = new TH1D("hdPhi_HFQ", "dPhi of electron to initial heavy flavor quark", 80, -PI, PI);
 	
+	TH2D *hJet_HFQ_Ecorr = new TH2D("hJet_HFQ_Ecorr", "Correlation of jet energy to initial HFQ energy", 400, 0.0, 40.0, 400, 0.0, 40.0);
+	TH1D *hHFQ_Pt_all_jets = new TH1D("hHFQ_Pt_all_jets", "HFQ Pt for high energy jet", 400, 0.0, 40.0);
+	TH1D *hHFQ_Pt_high_away_side = new TH1D("hHFQ_Pt_high_away_side", "HFQ Pt for back to back high energy jets", 400, 0.0, 40.0);
+	
 	final_state_particle_t current_particle;
 	vector<final_state_particle_t> event_electrons;
 	vector<final_state_particle_t> event_assoparticles;
@@ -310,7 +314,7 @@ void Pythia_NPE_jet() {
 			
 			for (vector<final_state_particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
 	
-				if (e_iter->pt < 3 || e_iter->pt > 10 || e_iter->eta > .7 || e_iter->eta < -.7) continue; 
+				if (e_iter->pt < 3 || e_iter->pt > 10 || e_iter->eta > .2 || e_iter->eta < -.2) continue; 
 				
 				hdPhi_mother->Fill(deltaPhi(e_iter->phi, e_iter->mother_phi));
 				hdPhi_HFQ->Fill(deltaPhi(e_iter->phi, e_iter->HFQ_phi));
@@ -327,6 +331,7 @@ void Pythia_NPE_jet() {
 						hJet_ET_conesize[i]->Fill(current_jet.E_T);
 						hNPEFraction_conesize[i]->Fill(current_jet.e_E/current_jet.E);
 						hNParticles_conesize[i]->Fill(current_jet.NParticles);
+						hJet_HFQ_Ecorr->Fill(e_iter->HFQ_pt, current_jet.E_T);
 					}
 					hjet_phi->Fill(current_jet.axis_phi);
 					hjet_eta->Fill(current_jet.axis_eta);
@@ -335,18 +340,25 @@ void Pythia_NPE_jet() {
 					float away_jet_axis_phi = -current_jet.axis_phi;
 					float away_jet_axis_eta = -current_jet.axis_eta;
 					float away_jet_Etot = 0.0;
+					cout << "e eta " << e_iter->eta << endl;
+					cout << "e phi " << e_iter->phi << endl;
+					cout << "e pt " << e_iter->pt << endl;
 					for (vector<final_state_particle_t>::iterator fs_iter = event_assoparticles.begin(); fs_iter != event_assoparticles.end(); fs_iter++) {
 						if (fs_iter->eta < 1.0 && fs_iter->eta > -1.0 && fs_iter->pt > .2) { //acceptance cuts
+							cout << "fs eta " << fs_iter->eta << endl;
+							cout << "fs phi " << fs_iter->phi << endl;
+							cout << "fs pt " << fs_iter->pt << endl;
 							float dEta = fs_iter->eta - away_jet_axis_eta;
 							float dPhi = deltaPhi(fs_iter->phi, away_jet_axis_phi);
-							if (sqrt(dEta*dEta + dPhi*dPhi) < 0.5) { //within the away side cone
+							if (fabs(dEta) < 1.0 && fabs(dPhi) < 1.0) { //within the away side
 								away_jet_Etot += fs_iter->pt;
 							}
 						}
 					}
 	
 					hawayside_Etot->Fill(away_jet_Etot);
-					
+					hHFQ_Pt_all_jets->Fill(e_iter->HFQ_pt);
+					if (away_jet_Etot > .5*current_jet.E_T) hHFQ_Pt_high_away_side->Fill(e_iter->HFQ_pt); 
 				}
 			}
 			
