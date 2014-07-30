@@ -115,6 +115,17 @@ float deltaPhi(float phi1, float phi2) {
 	
 }
 
+float rotatePhi(float angle, float rotation) {
+	float new_angle = angle + rotation;
+	if (new_angle > PI) {
+		new_angle -= 2.0*PI;
+	}
+	else if (new_angle < -PI) {
+		new_angle += 2.0*PI;
+	}
+	return new_angle;
+}
+
 void fixed_cone_e_jet(jet_t& jet, final_state_particle_t event_electron, vector<final_state_particle_t> event_assoparticles, float conesize) {
 	
 	jet.NParticles = 0;
@@ -159,10 +170,10 @@ void fixed_cone_e_jet(jet_t& jet, final_state_particle_t event_electron, vector<
 	
 	//calculate phi coordinate
 	float phi_of_jet = event_electron.phi - Ephi/htot_pt;
-	if (phi_of_jet < 0.0) {
+	if (phi_of_jet < -PI) {
 		phi_of_jet += 2.0*PI;
 	} 
-	else if (phi_of_jet > 2.0*PI) {
+	else if (phi_of_jet > PI) {
 		phi_of_jet -= 2.0*PI;
 	}
 
@@ -257,7 +268,7 @@ void Pythia_NPE_jet() {
 	nfile += chain->Add(inputfiles.data());
 	cout << "Added " << nfile << " to chain." << endl;
 	
-	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_awayjet_5GeV_cutoff_25M_tight_eta_output.root";
+	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_awayjet_nocutoff_25M_tight_eta_output.root";
 	TFile *outfile = new TFile(ofname.data(), "RECREATE");
 	
 	//Histograms
@@ -279,7 +290,7 @@ void Pythia_NPE_jet() {
 		hNParticles_conesize[i] = new TH1D(Form("hNParticles_conesize_%d", i), Form("NParticles in jet for conesize %d", i), 20, 0, 20);
 	}
 	
-	TH1D *hjet_phi = new TH1D("hjet_phi", "phi centroid of jet", 100, 0, 2.0*PI);
+	TH1D *hjet_phi = new TH1D("hjet_phi", "phi centroid of jet", 100, -PI, PI);
 	TH1D *hjet_eta = new TH1D("hjet_eta", "eta centroid of jet", 100, -1.0, 1.0);
 	
 	TH1D *hawayside_Etot = new TH1D("hawayside_Etot", "Total energy in away side cone", 400, 0.0, 40.0);
@@ -337,17 +348,11 @@ void Pythia_NPE_jet() {
 					hjet_eta->Fill(current_jet.axis_eta);
 					
 					//loop through all FS particles and sum up those in away side jet
-					float away_jet_axis_phi = -current_jet.axis_phi;
+					float away_jet_axis_phi = rotatePhi(current_jet.axis_phi, -PI);
 					float away_jet_axis_eta = -current_jet.axis_eta;
 					float away_jet_Etot = 0.0;
-					cout << "e eta " << e_iter->eta << endl;
-					cout << "e phi " << e_iter->phi << endl;
-					cout << "e pt " << e_iter->pt << endl;
 					for (vector<final_state_particle_t>::iterator fs_iter = event_assoparticles.begin(); fs_iter != event_assoparticles.end(); fs_iter++) {
 						if (fs_iter->eta < 1.0 && fs_iter->eta > -1.0 && fs_iter->pt > .2) { //acceptance cuts
-							cout << "fs eta " << fs_iter->eta << endl;
-							cout << "fs phi " << fs_iter->phi << endl;
-							cout << "fs pt " << fs_iter->pt << endl;
 							float dEta = fs_iter->eta - away_jet_axis_eta;
 							float dPhi = deltaPhi(fs_iter->phi, away_jet_axis_phi);
 							if (fabs(dEta) < 1.0 && fabs(dPhi) < 1.0) { //within the away side
@@ -358,7 +363,7 @@ void Pythia_NPE_jet() {
 	
 					hawayside_Etot->Fill(away_jet_Etot);
 					hHFQ_Pt_all_jets->Fill(e_iter->HFQ_pt);
-					if (away_jet_Etot > .5*current_jet.E_T) hHFQ_Pt_high_away_side->Fill(e_iter->HFQ_pt); 
+					if (away_jet_Etot > .6*current_jet.E_T) hHFQ_Pt_high_away_side->Fill(e_iter->HFQ_pt); 
 				}
 			}
 			
