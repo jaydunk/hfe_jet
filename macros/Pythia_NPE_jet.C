@@ -268,7 +268,7 @@ void Pythia_NPE_jet() {
 	nfile += chain->Add(inputfiles.data());
 	cout << "Added " << nfile << " to chain." << endl;
 	
-	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_awayjet_nocutoff_25M_tight_eta_output.root";
+	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_awayjet_2pt_cutoff_25M_tight_eta_output.root";
 	TFile *outfile = new TFile(ofname.data(), "RECREATE");
 	
 	//Histograms
@@ -300,6 +300,7 @@ void Pythia_NPE_jet() {
 	TH2D *hJet_HFQ_Ecorr = new TH2D("hJet_HFQ_Ecorr", "Correlation of jet energy to initial HFQ energy", 400, 0.0, 40.0, 400, 0.0, 40.0);
 	TH1D *hHFQ_Pt_all_jets = new TH1D("hHFQ_Pt_all_jets", "HFQ Pt for high energy jet", 400, 0.0, 40.0);
 	TH1D *hHFQ_Pt_high_away_side = new TH1D("hHFQ_Pt_high_away_side", "HFQ Pt for back to back high energy jets", 400, 0.0, 40.0);
+	TH1D *hHFQ_Pt_ee_pair = new TH1D("hHFQ_Pt_ee_pair", "HFQ Pt for pair of high pt electrons", 400, 0.0, 40.0);
 	
 	final_state_particle_t current_particle;
 	vector<final_state_particle_t> event_electrons;
@@ -322,6 +323,20 @@ void Pythia_NPE_jet() {
 		int current_event = current_particle.event_no;
 		
 		if (current_event != prev_event && !first_event) { //end of event, build correlation
+	
+			//one special loop for 2 electron events
+			if (event_electrons.size() == 2) {
+				bool valid_prev_NPE = false;
+				final_state_particle_t prev_NPE;
+				for (vector<final_state_particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
+					if (e_iter->pt < 3 || e_iter->pt > 10 || e_iter->eta > .7 || e_iter->eta < -.7) continue;
+					
+					if (valid_prev_NPE) {
+						hHFQ_Pt_ee_pair->Fill(e_iter->HFQ_pt);	
+					}
+					valid_prev_NPE = true;
+				}
+			}
 			
 			for (vector<final_state_particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
 	
