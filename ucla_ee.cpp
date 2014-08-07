@@ -103,7 +103,7 @@ double PtWeightUserHooks::biasSelectionBy(const SigmaProcess *sigmaProcessPtr, c
 		hptHat->Fill(pTHat);
 		
 		//cout << "pHat " << pTHat << endl;
-		selBias = 1.0;//pTHat*pTHat*pTHat*pTHat;
+		selBias = pTHat*pTHat*pTHat*pTHat*pTHat*pTHat;
 		//setting sel bias to account for RAA
 		//selBias = pow((1+pTHat/.3), 8.3) * pow(1/(1+.3/*S_0*/) + pTHat/.3, -8.3) * pow(1+.3, 2 - 8.3);
 		//cout << "pTHat " << pTHat << endl;

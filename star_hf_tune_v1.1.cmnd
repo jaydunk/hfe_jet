@@ -130,7 +130,7 @@ SigmaProcess:factorMultFac = 2   ! 2mT
 # number of events) to compile the final complete spectra.
 # Documentation: <pyhiadir>/htmldoc/PhaseSpaceCuts.html
 #------------------------------------------------------------------------------
-PhaseSpace:pTHatMin = 2 
+PhaseSpace:pTHatMin = 0 
 PhaseSpace:pTHatMax = -1
 
 #------------------------------------------------------------------------------
