@@ -268,7 +268,7 @@ void Pythia_NPE_jet() {
 	nfile += chain->Add(inputfiles.data());
 	cout << "Added " << nfile << " to chain." << endl;
 	
-	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_awayjet_2pt_cutoff_25M_tight_eta_output.root";
+	string ofname = "/Users/jaydunkelberger/PYTHIA/pythiasimulations/e_jet/data/pythia_NPE_awayjet_weight_25M_tight_eta_output.root";
 	TFile *outfile = new TFile(ofname.data(), "RECREATE");
 	
 	//Histograms
@@ -298,10 +298,13 @@ void Pythia_NPE_jet() {
 	TH1D *hdPhi_HFQ = new TH1D("hdPhi_HFQ", "dPhi of electron to initial heavy flavor quark", 80, -PI, PI);
 	
 	TH2D *hJet_HFQ_Ecorr = new TH2D("hJet_HFQ_Ecorr", "Correlation of jet energy to initial HFQ energy", 400, 0.0, 40.0, 400, 0.0, 40.0);
+	TH2D *hHFQ_charm_Ecorr = new TH2D("hHFQ_charm_Ecorr", "Correlation of jet energy to initial charm HFQ energy", 400, 0.0, 40.0, 400, 0.0, 40.0);
+	TH2D *hHFQ_bottom_Ecorr = new TH2D("hHFQ_bottom_Ecorr", "Correlation of jet energy to initial bottom HFQ energy", 400, 0.0, 40.0, 400, 0.0, 40.0);
 	TH1D *hHFQ_Pt_all_jets = new TH1D("hHFQ_Pt_all_jets", "HFQ Pt for high energy jet", 400, 0.0, 40.0);
 	TH1D *hHFQ_Pt_high_away_side = new TH1D("hHFQ_Pt_high_away_side", "HFQ Pt for back to back high energy jets", 400, 0.0, 40.0);
 	TH1D *hHFQ_Pt_ee_pair = new TH1D("hHFQ_Pt_ee_pair", "HFQ Pt for pair of high pt electrons", 400, 0.0, 40.0);
-	
+	TH1D *hHFQ_weighted_Pt_ee_pair = new TH1D("hHFQ_weighted_Pt_ee_pair", "Weighted HFQ Pt for pair of high pt electrons", 400, 0.0, 40.0);
+
 	final_state_particle_t current_particle;
 	vector<final_state_particle_t> event_electrons;
 	vector<final_state_particle_t> event_assoparticles;
@@ -332,7 +335,16 @@ void Pythia_NPE_jet() {
 					if (e_iter->pt < 3 || e_iter->pt > 10 || e_iter->eta > .7 || e_iter->eta < -.7) continue;
 					
 					if (valid_prev_NPE) {
-						hHFQ_Pt_ee_pair->Fill(e_iter->HFQ_pt);	
+						double HFQ_PT = e_iter->HFQ_pt;
+						if (HFQ_PT < .1) continue;
+						hHFQ_Pt_ee_pair->Fill(HFQ_PT);	
+						hHFQ_weighted_Pt_ee_pair->Fill(HFQ_PT, 1.0/(HFQ_PT*HFQ_PT*HFQ_PT*HFQ_PT*HFQ_PT*HFQ_PT));
+						/*if (fabs(e_iter->HFQ_id) == 4) {
+							hHFQ_charm_Ecorr->Fill(e_iter->HFQ_pt, e_iter->pt);	
+						}
+						else if (fabs(e_iter->HFQ_id) == 5) {
+							hHFQ_bottom_Ecorr->Fill(e_iter->HFQ_pt, e_iter->pt);	
+						}*/
 					}
 					valid_prev_NPE = true;
 				}
@@ -340,6 +352,15 @@ void Pythia_NPE_jet() {
 			
 			for (vector<final_state_particle_t>::iterator e_iter = event_electrons.begin(); e_iter != event_electrons.end(); e_iter++) {
 	
+				if (e_iter->eta < .7 && e_iter->eta > -.7) {
+					if (fabs(e_iter->HFQ_id) == 4) {
+						hHFQ_charm_Ecorr->Fill(e_iter->HFQ_pt, e_iter->pt);	
+					}
+					else if (fabs(e_iter->HFQ_id) == 5) {
+						hHFQ_bottom_Ecorr->Fill(e_iter->HFQ_pt, e_iter->pt);	
+					}
+				}
+					
 				if (e_iter->pt < 3 || e_iter->pt > 10 || e_iter->eta > .2 || e_iter->eta < -.2) continue; 
 				
 				hdPhi_mother->Fill(deltaPhi(e_iter->phi, e_iter->mother_phi));
